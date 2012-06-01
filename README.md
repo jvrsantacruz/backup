@@ -1,21 +1,61 @@
-# Personal scripts
+# backup.py
 
-This repository concentrates some small (sometimes tiny) useful scripts I write and use in my
-day-to-day work. They're mostly in *Python* but most of them started as quick *Bash* one-liners or
-scripts and the primitive version is also included.
+Make data snapshots local or remote (ssh/http/rsync) with no space overhead.
 
-Each script is in a separated directory including its own README file with instructions and
-indications about its implementation.
+When it comes to backups, simplicity it's always welcome. You've got files within directories, so
+store them exactly as they were. But transfer only those which change, and avoid replication.
 
-## What they do?
+`backup.py` just copies and stores changing files when performing a backup, and yet making it
+appear as a complete full copy on destination. Very much like *TimeMachine* on MacOs.
 
-This is a short description list of each script.
+# How to use it
 
-- **backup**: Simple incremental `time-machine`-like backup scheme, based in hard-linking. 
-- **filediff**: Calculate differences between file trees by finding the exclusive files under each one by inode.
+If you were to save directory in your home folder to a external hard drive, you could call
+the program straight from the command line like this:
 
-## Why I upload them?
+	./backup  --origin ~/data  --dest /media/external   backup
 
-I use and update this small pieces of software constantly, so having them here kind of forces me to
-maintain some order and documentation. Keeping the files under git also avoids the chance of
-shooting myself in the foot.
+But you're more likely to write a backup plan in a very simple `config.yaml` file and just make:
+
+	./backup --plan config.yaml   backup
+
+With your `config.yaml` looking like this:
+
+	# backup plan
+	dest: /media/external
+	origins:
+		- /home/user/data
+
+But you can do much more than just this. For example, you could *pull* your data from a remote
+location by simply writing one of your 'origins' in a way that would be recognized by `rsync`:
+
+	# backup plan
+	dest: /media/external
+	origins:
+		- user@machine:/home/user/data    # ssh
+		- machine::module/home/user/data  # rsync (http)
+
+# How a backup looks like?
+
+That's the interesting part: It looks exactly as the original. If you make 5 copies, you got 5 full
+copies on destination, but taking the space of 1 copy plus changes between them.
+
+In other words, imagine you have this bunch of personal files that accounts for about 15 Megabytes.
+
+	$ tree -h /home/user/data
+	/home/user/data
+	├── [15.0M]  desktop
+	│   ├── [12M]  beethoven.mp3
+	│   └── [ 3M]  booklog.txt
+	└── [4.0K]   myfolder
+		└── [  12]  shoplist.txt
+
+		2 directories, 3 files
+
+And then you perform a couple of copies using `backup.py`:
+	
+	$ ./backup -o /home/user/data -d /media/external/backups  backup
+	$ ./backup -o /home/user/data -d /media/external/backups  backup
+
+You'll end up with two time-stamped directories in `/media/externa/backups`, holding your files
+inside exactly as they were:
